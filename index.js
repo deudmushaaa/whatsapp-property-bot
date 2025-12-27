@@ -1,5 +1,6 @@
 import makeWASocket, { DisconnectReason, useMultiFileAuthState } from '@whiskeysockets/baileys';
-import readlineSync from 'readline-sync';
+// readlineSync is no longer needed for deployment
+// import readlineSync from 'readline-sync'; 
 import { processMessage } from './messageHandler.js';
 import { testConnection } from './supabaseClient.js';
 import dotenv from 'dotenv';
@@ -20,26 +21,13 @@ async function connectToWhatsApp() {
   
   sock = makeWASocket({
     auth: state,
-    printQRInTerminal: false, // We handle auth flow manually
+    // IMPORTANT: Set to true for server deployments to see QR code in logs
+    printQRInTerminal: true, 
   });
 
-  // Use pairing code for the first connection
-  if (!sock.authState.creds.registered) {
-    console.log('🚀 First-time setup required.');
-    
-    // Prompt for phone number
-    const phoneNumber = readlineSync.question('Please enter your bot admin WhatsApp number (e.g., 2567...): ');
-    
-    try {
-      const code = await sock.requestPairingCode(phoneNumber);
-      console.log(`\n✅ Your pairing code is: ${code}\n`);
-      console.log('Go to WhatsApp on your phone:');
-      console.log('Settings > Linked Devices > Link a device > Link with phone number instead');
-    } catch (error) {
-      console.error('❌ Failed to request pairing code. Please restart and try again.', error);
-      process.exit(1);
-    }
-  }
+  // REMOVED: The interactive pairing code block is not suitable for server deployment
+  // It would cause the app to hang, waiting for user input that can't be provided.
+  // The QR code printed in the terminal is the standard way for servers.
 
   // Save credentials when updated
   sock.ev.on('creds.update', saveCreds);
@@ -58,12 +46,14 @@ async function connectToWhatsApp() {
         console.log('🔄 Reconnecting in 3 seconds...');
         setTimeout(() => connectToWhatsApp(), 3000);
       } else {
-        console.log('⚠️  Logged out. Delete the auth_info folder and restart.');
+        console.log('⚠️  Logged out. Delete the auth_info folder on the server volume and restart.');
       }
     } else if (connection === 'open') {
-      console.log(`\n✅ Connected to WhatsApp!`);
+      console.log(`
+✅ Connected to WhatsApp!`);
       console.log(`🤖 Property Management Bot is running...`);
-      console.log(`💬 Send a message to test: "Kamau paid 500000"\n`);
+      console.log(`💬 Send a message from a registered landlord number to test.
+`);
     }
   });
 
@@ -84,7 +74,8 @@ async function connectToWhatsApp() {
       if (isGroup) continue;
       
       const maskedPhone = from.replace(/(\d{3})\d+(\d{3})/, '$1***$2');
-      console.log(`\n📩 Message from ${maskedPhone}:`);
+      console.log(`
+📩 Message from ${maskedPhone}:`);
       console.log(`   "${text}"`);
       
       try {
@@ -92,7 +83,8 @@ async function connectToWhatsApp() {
         const response = await processMessage(text, from, sock);
         await sock.sendPresenceUpdate('paused', from);
         await sock.sendMessage(from, { text: response });
-        console.log(`✅ Replied: ${response}\n`);
+        console.log(`✅ Replied: ${response}
+`);
         
       } catch (error) {
         console.error('❌ Error processing message:', error.message);
@@ -113,9 +105,11 @@ async function connectToWhatsApp() {
 
 // Graceful shutdown
 const shutdown = async () => {
-  console.log(`\n🛑 Shutting down bot...`);
+  console.log(`
+🛑 Shutting down bot...`);
   if (sock) {
-    await sock.logout();
+    // Using logout() is cleaner for a graceful shutdown
+    await sock.logout('Bot shutting down');
   }
   process.exit(0);
 };
