@@ -29,16 +29,10 @@ async function connectToWhatsApp() {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      // --- FINAL SOLUTION --- //
-      // Log the raw QR string. You can copy this and paste it into any online QR code generator.
-      console.log('\n[FINAL ATTEMPT] Your QR code is ready.');
-      console.log('\nCOPY THE STRING BELOW AND PASTE IT INTO a QR GENERATOR ONLINE (e.g., the-qrcode-generator.com)');
-      console.log('===================================================');
-      console.log('QR CODE STRING:', qr);
-      console.log('===================================================\n');
-
-      // We still generate it visually in the terminal as a backup.
+      console.log('\n------------------------------------------------');
+      console.log('    ⬇️  SCAN THE QR CODE BELOW TO CONNECT ⬇️    ');
       qrcode.generate(qr, { small: true });
+      console.log('------------------------------------------------\n');
     }
 
     if (connection === 'close') {
@@ -49,7 +43,7 @@ async function connectToWhatsApp() {
         console.log('🔄 Reconnecting...');
         connectToWhatsApp();
       } else {
-        console.log('⚠️ Logged out. You will need to delete the auth_info folder and restart.');
+        console.log('⚠️ Logged out. You may need to delete the auth_info folder and restart.');
       }
     } else if (connection === 'open') {
       console.log('\n✅ Connected to WhatsApp!');
