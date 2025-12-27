@@ -8,7 +8,7 @@ Landlords can:
 - ✅ Record payments by sending WhatsApp messages: "Kamau paid 500000"
 - 📄 Automatically send PDF receipts to tenants
 - 🔍 Check payment status: "Did Sarah pay this month?"
-- 💰 Track all payments in Supabase database
+- 💰 Track all payments in a Supabase database
 
 ## 🚀 Quick Start
 
@@ -16,7 +16,7 @@ Landlords can:
 - Node.js 18+ installed
 - Supabase account with tables set up
 - Groq API key (free at console.groq.com)
-- WhatsApp account
+- A WhatsApp account
 
 ### 2. Installation
 
@@ -24,23 +24,80 @@ Landlords can:
 # Install dependencies
 npm install
 
-# Run setup wizard
+# Run the interactive setup wizard
 npm run setup
 
-# Start the bot
+# Start the bot for local testing
 npm start
 ```
 
-### 3. Connect WhatsApp
+### 3. Connect WhatsApp (Local)
 
-When you run `npm start`, a QR code will appear. Scan it with WhatsApp:
+When you run `npm start` locally, a QR code will appear in your terminal. Scan it with WhatsApp:
 
 1. Open WhatsApp on your phone
 2. Go to **Settings → Linked Devices**
 3. Tap **Link a Device**
 4. Scan the QR code
 
-✅ Once connected, the bot runs 24/7!
+✅ Once connected, the bot runs on your computer!
+
+---
+
+## 🚀 Deployment to Render (for 24/7 Operation)
+
+To run the bot continuously, deploy it as a free service on Render.com.
+
+### Step 1: Push to GitHub
+
+Make sure your latest code is on GitHub:
+```bash
+git add .
+git commit -m "Ready for deployment"
+git push origin main
+```
+
+### Step 2: Deploy on Render
+
+1.  **Sign up:** Create an account on [Render.com](https://render.com), connecting your GitHub account.
+2.  **New Web Service:** On the dashboard, click **New+ → Web Service**.
+3.  **Select Repo:** Choose your `whatsapp-property-bot` repository.
+4.  **Configuration:**
+    *   **Name:** Give it a unique name (e.g., `whatsapp-bot-uganda`).
+    *   **Runtime:** Should automatically be `Node`.
+    *   **Build Command:** `npm install`
+    *   **Start Command:** `node index.js`
+    *   **Instance Type:** Choose **Free**.
+
+5.  **Add Persistent Disk (CRITICAL):**
+    *   Scroll to **Advanced Settings**.
+    *   Click `Add Persistent Disk`.
+    *   **Name:** `auth-storage`
+    *   **Mount Path:** `/var/data/auth_info` (This is where your WhatsApp session will be saved).
+
+6.  **Add Environment Variables:**
+    *   In the same Advanced section, add these four variables:
+        *   `SUPABASE_URL` : Your Supabase URL.
+        *   `SUPABASE_KEY` : Your Supabase anon key.
+        *   `GROQ_API_KEY` : Your Groq API key.
+        *   `AUTH_DIR_PATH`: `/var/data/auth_info` (Must match the disk mount path).
+
+7.  **Deploy:** Click `Create Web Service`.
+
+### Step 3: Final Connection
+
+- Go to the **Logs** tab for your new service on Render.
+- A **QR code** will appear in the logs. Scan it **one last time** with WhatsApp.
+- Thanks to the persistent disk, you won't need to scan it again.
+
+✅ Your bot is now live and will run 24/7!
+
+## 💰 Cost Estimation
+
+- **Render Hosting:** FREE (on the free instance type).
+- **Groq AI API:** FREE (generous starting tier).
+- **Supabase DB:** FREE (on the free tier).
+- **Total Cost:** **0 UGX** to start and run.
 
 ## 📋 Required Supabase Tables
 
@@ -91,58 +148,6 @@ CREATE TABLE payments (
 );
 ```
 
-## 💬 How to Use
-
-### Recording Payments
-
-Send any of these messages via WhatsApp:
-
-```
-"Kamau paid 500000"
-"Record payment: John 600k December"
-"Amina 450000 for November"
-"500k from Sarah"
-```
-
-The bot will:
-1. ✅ Record payment in database
-2. 📄 Generate PDF receipt
-3. 📤 Send receipt to tenant's WhatsApp
-4. 💬 Reply with confirmation
-
-### Checking Payment Status
-
-```
-"Did Kamau pay this month?"
-"Has Sarah paid for December?"
-```
-
-The bot replies with payment status.
-
-## 🔧 Configuration
-
-### Environment Variables (`.env`)
-
-```bash
-# Supabase
-SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_KEY=your_anon_key
-
-# Groq AI
-GROQ_API_KEY=gsk_xxxxx
-
-# Optional
-ENABLE_LOGGING=true
-```
-
-### Phone Number Format
-
-Landlord and tenant phone numbers in Supabase should be:
-- Without `+`: `256700000000`
-- Or with `+`: `+256700000000`
-
-Both formats work!
-
 ## 📁 Project Structure
 
 ```
@@ -153,90 +158,8 @@ whatsapp-bot/
 ├── supabaseClient.js     # Database connection
 ├── setup.js              # Setup wizard
 ├── .env                  # Your credentials (DO NOT COMMIT)
-├── auth_info/            # WhatsApp session (auto-created)
+├── auth_info/            # WhatsApp session (local dev)
 └── package.json          # Dependencies
-```
-
-## 🐛 Troubleshooting
-
-### "Supabase connection failed"
-- Check your `SUPABASE_URL` and `SUPABASE_KEY` in `.env`
-- Verify tables exist in Supabase
-- Check internet connection
-
-### "Your number is not registered"
-- Add your WhatsApp number to the `landlords` table in Supabase
-- Phone number should match exactly (with or without `+`)
-
-### "Couldn't find tenant"
-- Check spelling of tenant name
-- Verify tenant exists in `tenants` table
-- Check that tenant belongs to your property (`landlord_id` chain)
-
-### WhatsApp disconnects randomly
-- This is normal! The bot auto-reconnects
-- Session is saved in `auth_info/` folder
-- Delete `auth_info/` and rescan QR if issues persist
-
-### Receipt not sending
-- Check tenant phone number in database
-- Verify Puppeteer installed correctly
-- Check `/tmp` folder permissions
-
-## 🚀 Deployment to Railway
-
-Once tested locally:
-
-1. Push to GitHub:
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git push origin main
-```
-
-2. Deploy to Railway:
-- Go to [railway.app](https://railway.app)
-- "New Project" → "Deploy from GitHub"
-- Select your repo
-- Add environment variables (SUPABASE_URL, SUPABASE_KEY, GROQ_API_KEY)
-
-3. Connect WhatsApp:
-- Check Railway logs for QR code
-- Scan once
-- Bot runs forever!
-
-## 💰 Cost Estimation
-
-**For 100 landlords:**
-- Groq API: ~15,000 UGX/year (generous free tier)
-- Railway hosting: FREE (500 hours/month)
-- Supabase: FREE (generous tier)
-- **Total: ~15k UGX/year**
-
-**Your profit:** 100 landlords × 100k = 10M UGX/year  
-**Net profit:** ~9.985M UGX/year 🎉
-
-## 📱 Example Conversation
-
-```
-You: Kamau paid 500000
-
-Bot: ✅ 500,000 UGX recorded for Kamau Mwangi (2024-12).
-     📄 Receipt sent to 256700123456.
-
----
-
-You: Did Sarah pay this month?
-
-Bot: ❌ No, Sarah Nakato has not paid for 2024-12 yet.
-
----
-
-You: Record payment John 600k December
-
-Bot: ✅ 600,000 UGX recorded for John Okello (2024-12).
-     📄 Receipt sent to 256700789012.
 ```
 
 ## 🔐 Security Notes
@@ -245,21 +168,8 @@ Bot: ✅ 600,000 UGX recorded for John Okello (2024-12).
 - `.env` (contains API keys)
 - `auth_info/` (WhatsApp session)
 
-Already in `.gitignore`!
+This is handled by the `.gitignore` file.
 
 ## 🤝 Support
 
 Built for Ugandan landlords by Micheal Owen & Mushamba Dauda.
-
-**Issues?** Check:
-1. Are all environment variables set?
-2. Is your phone number in the `landlords` table?
-3. Are tenant names spelled correctly?
-
-## 📄 License
-
-MIT License - Use it, modify it, profit from it!
-
----
-
-**🎉 Ready to revolutionize property management in Uganda!**
