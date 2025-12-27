@@ -3,14 +3,11 @@ import { processMessage } from './messageHandler.js';
 import { testConnection } from './supabaseClient.js';
 import dotenv from 'dotenv';
 import path from 'path';
+import qrcode from 'qrcode-terminal';
 
 dotenv.config();
 
 // --- Dynamic Path for WhatsApp Authentication ---
-// Render provides a persistent disk that we mount at a specific path.
-// This allows the auth_info folder to survive restarts and redeploys.
-// We use an environment variable to define this path.
-// If the variable isn't set, we default to a local folder for development.
 const authInfoPath = process.env.AUTH_DIR_PATH || './auth_info';
 console.log(`🔐 Using auth state from: ${path.resolve(authInfoPath)}`);
 // ---------------------------------------------
@@ -25,24 +22,29 @@ if (!dbConnected) {
 let sock;
 
 async function connectToWhatsApp() {
-  // Use the dynamic path for storing auth state
   const { state, saveCreds } = await useMultiFileAuthState(authInfoPath);
 
   sock = makeWASocket({
     auth: state,
-    // IMPORTANT: Set to true for server deployments to see QR code in logs
-    printQRInTerminal: true,
+    // printQRInTerminal is deprecated. We will handle it manually.
   });
-
-  // REMOVED: The interactive pairing code block is not suitable for server deployment
-  // The QR code printed in the terminal is the standard way for servers.
 
   // Save credentials when updated
   sock.ev.on('creds.update', saveCreds);
 
   // Handle connection updates
   sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect } = update;
+    // Destructure qr from the update object
+    const { connection, lastDisconnect, qr } = update;
+
+    // --- NEW: Manually handle QR code --- 
+    if (qr) {
+      console.log('\n------------------------------------------------');
+      console.log('    ⬇️  SCAN THE QR CODE BELOW TO CONNECT ⬇️    ');
+      qrcode.generate(qr, { small: true });
+      console.log('------------------------------------------------\n');
+    }
+    // -------------------------------------
 
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
@@ -116,7 +118,6 @@ const shutdown = async () => {
   console.log(`
 🛑 Shutting down bot...`);
   if (sock) {
-    // Using logout() is cleaner for a graceful shutdown
     await sock.logout('Bot shutting down');
   }
   process.exit(0);
